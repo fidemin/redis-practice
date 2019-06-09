@@ -9,7 +9,7 @@ class MockRedisClient(object):
 
     def incr(self, key):
         if self._exist(key):
-            value = self._get(key)
+            value = float(self._get(key))
             value += 1
             self._set(key, value)
             return
@@ -27,7 +27,7 @@ class MockRedisClient(object):
         return self._data.get(key, None)
 
     def _set(self, key, value):
-        self._data[key] = value
+        self._data[key] = str(value).encode('utf-8')
 
     def expire(self, key, ttl_in_seconds):
         pass
@@ -49,13 +49,13 @@ class TestTimeSeries(object):
         pass
 
     def test_insert(self):
-        assert self.client._data['test:1sec:0'] == 2
-        assert self.client._data['test:1sec:1'] == 3
-        assert self.client._data['test:1sec:60'] == 1
-        assert self.client._data['test:1min:0'] == 5
-        assert self.client._data['test:1min:60'] == 1
-        assert self.client._data['test:1hour:0'] == 6
-        assert self.client._data['test:1day:0'] == 6
+        assert int(float(self.client._data['test:1sec:0'])) == 2
+        assert int(float(self.client._data['test:1sec:1'])) == 3
+        assert int(float(self.client._data['test:1sec:60'])) == 1
+        assert int(float(self.client._data['test:1min:0'])) == 5
+        assert int(float(self.client._data['test:1min:60'])) == 1
+        assert int(float(self.client._data['test:1hour:0'])) == 6
+        assert int(float(self.client._data['test:1day:0'])) == 6
 
     def test_fetch(self):
         begin_timestamp = 0
@@ -63,7 +63,7 @@ class TestTimeSeries(object):
 
         results = self.timeseries.fetch('1min', begin_timestamp, end_timestamp)
         assert results[0]['timestamp'] == 0
-        assert results[0]['value'] == 5
-        assert results[1]['timestamp'] == 60
-        assert results[1]['value'] == 1
+        assert int(float(results[0]['value'])) == 5
+        assert int(float(results[1]['timestamp'])) == 60
+        assert int(float(results[1]['value'])) == 1
 
