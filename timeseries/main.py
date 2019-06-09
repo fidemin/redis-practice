@@ -1,10 +1,12 @@
 
-from timeseries import TimeSeries
+from timeseries import TimeSeries, TimeSeriesWithHash
 from redis import Redis
 
 if __name__ == '__main__':
     client = Redis(port=9005, db=0) 
-    ts = TimeSeries(client, 'purchases:item1')
+    client.flushdb()
+    #ts = TimeSeries(client, 'purchases:item1')
+    ts = TimeSeriesWithHash(client, 'purchases:item1')
 
     ts.insert(0)
     ts.insert(1)
@@ -12,5 +14,5 @@ if __name__ == '__main__':
     ts.insert(3)
     ts.insert(61)
 
-    results = ts.fetch('1sec', 0, 4)
+    results = ts.fetch('1day', 0, 4)
     print(results)
