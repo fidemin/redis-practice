@@ -5,7 +5,7 @@ from redis import Redis
 from util import display_results
 
 
-class TimeSeriesWithHyperLogLog(object):
+class TimeSeriesWithZset(object):
     def __init__(self, client, namespace):
         self._namespace = namespace
         self._client = client
@@ -20,28 +20,35 @@ class TimeSeriesWithHyperLogLog(object):
                 'name': '1sec',
                 'ttl': self._units['hour'] * 2,
                 'duration': self._units['second'],
+                'hash_size': self._units['minute'] * 2
             },
             '1min': {
                 'name': '1min',
                 'ttl': self._units['day'] * 7,
                 'duration': self._units['minute'],
+                'hash_size': self._units['hour'] * 2
             },
             '1hour': {
                 'name': '1hour',
                 'ttl': self._units['day'] * 60,
                 'duration': self._units['hour'],
+                'hash_size': self._units['day'] * 5
             },
             '1day': {
                 'name': '1day',
                 'ttl': None,
                 'duration': self._units['day'],
+                'hash_size': self._units['day'] * 30
             },
         }
 
     def insert(self, timestamp_in_seconds, thing):
         for name, granularity in self._granularities.items():
             key = self._key_name(granularity, timestamp_in_seconds)
-            self._client.pfadd(key, thing)
+            timestamp_score = self._rounded_timestamp(timestamp_in_seconds, granularity['duration'])
+            member = str(timestamp_score) + ':' + thing
+            self._client.zadd(key, {member: timestamp_score})
+
             if (granularity['ttl'] is not None):
                 self._client.expire(key, granularity['ttl'])
 
@@ -57,14 +64,14 @@ class TimeSeriesWithHyperLogLog(object):
         results = []
         while timestamp <= end:
             key = self._key_name(granularity, timestamp)
-            value= self._client.pfcount(key)
+            value= self._client.zcount(key, timestamp, timestamp)
             results.append({'timestamp': timestamp, 'value':value})
             timestamp += duration
 
         return results
 
     def _key_name(self, granularity, timestamp_in_seconds):
-        last_key_part = self._rounded_timestamp(timestamp_in_seconds, granularity['duration'])
+        last_key_part = self._rounded_timestamp(timestamp_in_seconds, granularity['hash_size'])
         return ':'.join([self._namespace, granularity['name'], str(last_key_part)])
 
     def _rounded_timestamp(self, timestamp_in_seconds, precision):
@@ -74,7 +81,8 @@ class TimeSeriesWithHyperLogLog(object):
 if __name__ == '__main__':
     client = Redis(port=9005, db=0)
     client.flushdb()
-    ts = TimeSeriesWithHyperLogLog(client, 'concurrentplays')
+
+    ts = TimeSeriesWithZset(client, 'concurrentplays')
     begin_timestamp = 0
     ts.insert(begin_timestamp, 'user:max')
     ts.insert(begin_timestamp, 'user:max')

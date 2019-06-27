@@ -1,5 +1,4 @@
 
-from timeseries import TimeSeries, TimeSeriesWithHash, TimeSeriesWithZset
 from redis import Redis
 
 def timeseries(client):
