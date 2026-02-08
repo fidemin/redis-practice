@@ -15,5 +15,6 @@ if __name__ == "__main__":
     # Continuous loop to listen for new data
     for message in p.listen():
         # Redis sends a 'subscribe' confirmation message first; we skip it
+        print(message)
         if message['type'] == 'message':
             print(f"Received: {message['data']}")
